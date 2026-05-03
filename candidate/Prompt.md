@@ -1,15 +1,40 @@
-## Prompt 1:
+# Prompt.md — Utilisation d'outils IA
 
-**IA** : Claude (mode Code)
-**Quand ?** : fin de l'exercice 1
-**Prompt** : "En analysant SUBJECT.md et Note.md, peux tu verifier que toute les informations concernant chaques erreurs sont presentes et que mes explications sont claires, si ce n'est pas le cas aide moi à reformuler"
-**Ce que le prompt m'a apporté** : Mon fichier etait assez complet (ormis la derniere explication de correction) cependant certaines phrases etaient mal formulées, Claude m'a aidé à clarifier ca.
+---
 
+## Prompt 1
 
-## Prompt 2:
+| Champ | Détail |
+|-------|--------|
+| **IA** | Claude (mode Code) |
+| **Quand** | Fin de l'exercice 1 |
+| **Prompt** | *"En analysant SUBJECT.md et Note.md, peux-tu vérifier que toutes les informations concernant chaque erreur sont présentes et que mes explications sont claires ? Si ce n'est pas le cas, aide-moi à reformuler."* |
 
-**IA** : Claude (mode Code)
-**Quand ?** : fin de l'exercice 2
-**Prompt** : "Peux tu check que toute les livrables demandés sont complets et comprehensibles (notamment les choix techniques de l'exo 2)"
-**Ce que le prompt m'a apporté** : Reformulation d'une phrases concernant les choix techniques de l'exercice 2, et clarification de certaines parties du code, hormis ca tout etait bon.
+**Ce que le prompt m'a apporté :**
+Mon fichier était assez complet (hormis la dernière explication de correction), cependant certaines phrases étaient mal formulées. Claude m'a aidé à les clarifier.
 
+---
+
+## Prompt 2
+
+| Champ | Détail |
+|-------|--------|
+| **IA** | Claude (mode Code) |
+| **Quand** | Fin de l'exercice 2 |
+| **Prompt** | *"Peux-tu vérifier que tous les livrables demandés sont complets et compréhensibles (notamment les choix techniques de l'exercice 2) ?"* |
+
+**Ce que le prompt m'a apporté :**
+Reformulation d'une phrase concernant les choix techniques de l'exercice 2, et clarification de certaines parties du code. Hormis ça, tout était bon.
+
+---
+
+## Prompt 3
+
+| Champ | Détail |
+|-------|--------|
+| **IA** | Claude (mode Code) |
+| **Quand** | Juste avant de push |
+| **Prompt** | *"Peux-tu modifier la syntaxe markdown de Prompt.md et Note.md de maniere à ce que soit plus lisible/clair avec un editeur qui la prend en compte"* |
+
+**Ce que le prompt m'a apporté :**
+Ma syntaxe etait pas forcement la bonne (je m'en suis rendu compte apres avoir push sur le git), Claude m'a aidé à la corrigée

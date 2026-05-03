@@ -1,44 +1,49 @@
-# Exercice 1:
+# Note.md — Bugs identifiés et choix techniques
 
-## Bug 1:
+---
 
-**endpoint** : GET /api/sessions/:id
-**fichier** : 'sessions.router.ts'
-**ligne** : 49
+# Exercice 1 — Débogage
 
+## Bug 1 — `GET /api/sessions/:id` : réponse 200 au lieu de 404
+
+| Champ | Détail |
+|-------|--------|
+| **Endpoint** | `GET /api/sessions/:id` |
+| **Fichier** | `sessions.router.ts` |
+| **Ligne** | 49 |
+
+**Code problématique :**
 ```ts
 res.json({ data: session });
 ```
 
-**probleme** :
-|-> si la session n'existe pas, Prisma va return null
-|-> le code renvoie 200 même avec "  { data: null }  "
-|-> On voudrais qu'il renvoie 404
+**Problème :**
+- Si la session n'existe pas, Prisma retourne `null`
+- Le code renvoyait un `200` avec `{ data: null }` au lieu d'un `404`
 
-**impact** : Le client ne recoit pas d'erreur claire ce qui peut porter à confusion
+**Impact :**
+Le client ne reçoit pas d'erreur claire, ce qui peut porter à confusion.
 
-**correction** : 
-
+**Correction :**
 ```ts
 if (!session) return res.status(404).json({ error: 'Session introuvable.' });
 res.json({ data: session });
 ```
 
-**explication** :
-|-> on verifie si session = null avant de return
-|-> si c'est le cas on renvoi 404
-|-> respect de la sémantique HTTP
+**Explication :**
+On vérifie si `session` est `null` avant de répondre. Si c'est le cas, on renvoie un `404`. Cela respecte la sémantique HTTP — un `404` signifie explicitement "ressource non trouvée".
 
+---
 
+## Bug 2 — `POST /api/sessions/:id/participants` : `allocatedPlaces` jamais incrémenté
 
+| Champ | Détail |
+|-------|--------|
+| **Endpoint** | `POST /api/sessions/:id/participants` |
+| **Fichier** | `participants.router.ts` |
+| **Lignes** | 34 à 46 |
 
-
-## Bug 2:
-
-**endpoint** : POST /api/sessions/:id/participants
-**fichier** : 'participants.router.ts'
-**ligne** : 34 à 46
-
+**Code problématique :**
 ```ts
 if (session.allocatedPlaces >= session.maxCapacity) {
   return res.status(409).json({ error: 'Cette session est complète.' });
@@ -55,17 +60,16 @@ const participant = await prisma.participant.create({
 });
 ```
 
-**probleme** :
-|-> Le code va check si "  session.allocatedPlaces >= session.maxCapacity  "
-|-> et bloquer la session si elle est pleine
-|-> mais allocatedPlaces n'est pas incrémenter
-|-> donc la session ne sera jamais pleine
+**Problème :**
+- Le code vérifie si `allocatedPlaces >= maxCapacity` pour bloquer les inscriptions
+- Mais `allocatedPlaces` n'est jamais incrémenté après la création d'un participant
+- La session ne sera donc jamais considérée comme pleine
 
-**impact** : On peut inscrire une infinité de participants: la capacité max n'est jamais respectée
+**Impact :**
+On peut inscrire un nombre illimité de participants : la capacité maximale n'est jamais respectée.
 
-**correction** : 
-
-Apres "  prisma.participant.create(...)  ", il faut ajouter
+**Correction :**
+Après `prisma.participant.create(...)`, ajouter :
 ```ts
 await prisma.session.update({
   where: { id: sessionId },
@@ -73,60 +77,60 @@ await prisma.session.update({
 });
 ```
 
-**explication** :
-|-> Après chaque création de participant, on incrémente allocatedPlaces
-|-> de manière à ce que le if fonctionne correctement
-|-> et que la capacité max d'une session soit respectée
+**Explication :**
+Après chaque création de participant, on incrémente `allocatedPlaces` en base. Ainsi, le prochain appel lira la valeur à jour et le check `allocatedPlaces >= maxCapacity` fonctionnera correctement.
 
+---
 
+## Bug 3 — `GET /api/sessions` : requêtes N+1
 
+| Champ | Détail |
+|-------|--------|
+| **Endpoint** | `GET /api/sessions` |
+| **Fichier** | `sessions.router.ts` |
+| **Lignes** | 18 à 28 |
 
-
-## Bug 3:
-
-**endpoint** : GET /api/sessions
-**fichier** : 'sessions.router.ts'
-**ligne** : 18 à 28
-
+**Code problématique :**
 ```ts
 const result = await Promise.all(
-      sessions.map(async (session) => {
-        const school = await prisma.school.findUnique({
-          where: { id: session.hostSchoolId },
-        });
-        const participantCount = await prisma.participant.count({
-          where: { sessionId: session.id },
-        });
-        return { ...session, school, participantCount };
-    })
+  sessions.map(async (session) => {
+    const school = await prisma.school.findUnique({
+      where: { id: session.hostSchoolId },
+    });
+    const participantCount = await prisma.participant.count({
+      where: { sessionId: session.id },
+    });
+    return { ...session, school, participantCount };
+  })
 );
 ```
 
-**probleme** :
-|-> A chaque session 2 requêtes vont être faites
-|-> Une pour l'école et une pour le count des participants
-|-> Il ya 20 sessions donc 41 requêtes en tout au lieu de 1
+**Problème :**
+- Pour chaque session, 2 requêtes supplémentaires sont effectuées (école + count participants)
+- Avec 20 sessions : 41 requêtes au lieu de 1
 
-**impact** : Perte en efficacité/performance, sur une grosse base ca ralentit fortement l'API
+**Impact :**
+Perte en performance significative. Sur une base plus grande ou un trafic élevé, cela ralentit fortement l'API.
 
-**correction** : 
-
+**Correction :**
 ```ts
-prisma.session.findMany({
-  include: { hostSchool: true, _count: { select: { participants: true } } }
-})
+const sessions = await prisma.session.findMany({
+  include: { hostSchool: true, _count: { select: { participants: true } } },
+});
 ```
 
-**explication** :
-|-> On regroupe les 41 requêtes en une seule (include + _count)
-|-> Les jointures vont augmenter l'efficacité
+**Explication :**
+Prisma génère une seule requête SQL avec des jointures. `include: { hostSchool: true }` remplace le `findUnique` sur l'école, et `_count: { select: { participants: true } }` remplace le `participant.count`.
 
-# Exercice 2:
+---
 
-**Choix techniques**:
-|-> 2 requêtes
-    |-> Une pour la session
-    |-> Une pour les participants (avec include)
-|-> calcul de byStatus en JS avec .filter
-|-> Math.round pour arrondir conventionRate
-|-> regroupement avec Map + tri + slice pour topOriginSchools
+# Exercice 2 — Implémentation de `GET /api/sessions/:id/stats`
+
+## Choix techniques
+
+- **2 requêtes Prisma uniquement** (pas de N+1) :
+  - Une pour vérifier l'existence de la session
+  - Une pour récupérer tous les participants avec `include` (`convention` + `originSchool`)
+- **`byStatus`** : calculé en JS avec `.filter()` sur le tableau de participants
+- **`conventionRate`** : division avec protection contre la division par zéro, arrondi à 2 décimales avec `Math.round(rate * 100) / 100`
+- **`topOriginSchools`** : regroupement par école via une `Map`, tri décroissant par count, `slice(0, 3)` pour les 3 premiers
